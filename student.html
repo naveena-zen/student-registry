@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Student Management</title>
+</head>
+
+<body>
+  <h2>Student Management</h2>
+
+  <b>Add</b><br>
+  <input id="n" placeholder="Name">
+  <input id="r" placeholder="Roll">
+  <input id="m" placeholder="Marks" type="number">
+  <input id="s" placeholder="Subjects">
+  <button onclick="addStudent()">Add</button>
+  <span id="add-msg"></span>
+  <br><br>
+
+  <b>Update</b><br>
+  <input id="ui" placeholder="Student ID">
+  <input id="un" placeholder="Name">
+  <input id="ur" placeholder="Roll">
+  <input id="um" placeholder="Marks" type="number">
+  <input id="us" placeholder="Subjects">
+  <button onclick="updateStudent()">Update</button>
+  <span id="upd-msg"></span>
+  <br><br>
+
+  <span id="del-msg"></span><br>
+  <button onclick="loadStudents()">Refresh</button><br><br>
+
+  <table border="1" cellpadding="4" width="100%">
+    <tr>
+      <th>Name</th>
+      <th>Roll</th>
+      <th>Marks</th>
+      <th>Subjects</th>
+      <th>Actions</th>
+    </tr>
+    <tbody id="tb"></tbody>
+  </table>
+
+  <script>
+    const API = 'http://localhost:3000/students';
+    const g = id => document.getElementById(id);
+    const v = id => g(id).value.trim();
+
+    async function loadStudents() {
+      const data = await fetch(`${API}?t=${Date.now()}`, { cache: 'no-store' }).then(r => r.json());
+      g('tb').innerHTML = data.map(s => `<tr>
+    <td>${s.name}</td><td>${s.roll}</td><td>${s.marks}</td><td>${(s.subjects || []).join(', ')}</td>
+    <td>
+      <button onclick="fillUpdate('${s._id}','${s.name}','${s.roll}','${s.marks}','${(s.subjects || []).join(',')}')">Edit</button>
+      <button onclick="deleteStudent('${s._id}','${s.name}')">Del</button>
+    </td>
+  </tr>`).join('');
+      console.log('Loaded IDs:', data.map(s => s._id));
+    }
+
+    async function addStudent() {
+      const body = JSON.stringify({ name: v('n'), roll: v('r'), marks: Number(v('m')), subjects: v('s').split(',').map(x => x.trim()).filter(Boolean) });
+      const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      g('add-msg').textContent = res.ok ? 'Added!' : 'Error!';
+      if (res.ok) { ['n', 'r', 'm', 's'].forEach(id => g(id).value = ''); loadStudents(); }
+    }
+
+    function fillUpdate(id, name, roll, marks, subjects) {
+      g('ui').value = id; g('un').value = name; g('ur').value = roll; g('um').value = marks; g('us').value = subjects;
+    }
+
+    async function updateStudent() {
+      const id = v('ui');
+      if (!id) { g('upd-msg').textContent = 'Click Edit first!'; return; }
+      const body = JSON.stringify({ name: v('un'), roll: v('ur'), marks: Number(v('um')), subjects: v('us').split(',').map(x => x.trim()).filter(Boolean) });
+      const res = await fetch(`${API}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body });
+      g('upd-msg').textContent = res.ok ? 'Updated!' : 'Update failed!';
+      if (res.ok) loadStudents();
+    }
+
+    async function deleteStudent(id, name) {
+      console.log('deleteStudent called, id:', id);
+      if (!id) { g('del-msg').textContent = 'No ID!'; return; }
+      if (!confirm('Delete "' + name + '"?')) return;
+      const res = await fetch('http://localhost:3000/students/' + id, { method: 'DELETE' });
+      console.log('Delete status:', res.status);
+      g('del-msg').textContent = res.ok ? '"' + name + '" record deleted' : 'Delete failed!';
+      if (res.ok) loadStudents();
+    }
+    loadStudents();
+  </script>
+</body>
+
+</html>
